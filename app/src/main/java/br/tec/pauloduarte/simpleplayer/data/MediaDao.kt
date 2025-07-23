@@ -19,4 +19,13 @@ interface MediaDao {
 
     @Query("SELECT COUNT(*) FROM media WHERE playlistId = :playlistId")
     suspend fun getMediaCountForPlaylist(playlistId: Int): Int
+
+    @Query("SELECT * FROM media WHERE playlistId = :playlistId AND (groupName NOT LIKE '%XXX%' AND groupName NOT LIKE '%Adult%' AND groupName NOT LIKE '%+18%') ORDER BY name ASC")
+    fun getMediaForPlaylistFiltered(playlistId: Int): PagingSource<Int, Media>
+
+    @Query("SELECT * FROM media WHERE playlistId = :playlistId AND name LIKE :query AND (groupName NOT LIKE '%XXX%' AND groupName NOT LIKE '%Adult%' AND groupName NOT LIKE '%+18%') ORDER BY name ASC")
+    fun searchMediaInPlaylistFiltered(playlistId: Int, query: String): PagingSource<Int, Media>
+
+    @Query("SELECT * FROM media WHERE playlistId = :playlistId ORDER BY RANDOM() LIMIT 1")
+    suspend fun getRandomMedia(playlistId: Int): Media?
 }

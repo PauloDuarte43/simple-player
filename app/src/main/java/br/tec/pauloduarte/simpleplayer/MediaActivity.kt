@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.view.MenuItem
 import android.view.View
+import android.widget.CheckBox
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -40,6 +42,8 @@ class MediaActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var playlist: PlayList
     private var playlistId: Int = -1
+    private lateinit var filterCheckbox: CheckBox
+    private lateinit var randomButton: ImageButton
 
     private val db by lazy {
         Room.databaseBuilder(
@@ -58,6 +62,8 @@ class MediaActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         progressBar = findViewById(R.id.progressBar)
+        filterCheckbox = findViewById(R.id.filterCheckbox)
+        randomButton = findViewById(R.id.randomButton)
 
         playlistId = intent.getIntExtra("PLAYLIST_ID", -1)
         if (playlistId == -1) {
@@ -74,9 +80,31 @@ class MediaActivity : AppCompatActivity() {
 
         setupRecyclerView()
         setupSearchView()
+        setupFilterCheckbox()
+        setupRandomButton()
         observeMedias()
         loadMediasIfNeeded()
     }
+
+    private fun setupFilterCheckbox() {
+        filterCheckbox.setOnCheckedChangeListener { _, _ ->
+            observeMedias()
+        }
+    }
+
+    private fun setupRandomButton() {
+        randomButton.setOnClickListener {
+            lifecycleScope.launch {
+                val randomMedia = mediaViewModel.getRandomMedia(playlistId)
+                if (randomMedia != null) {
+                    handleMediaClick(randomMedia)
+                } else {
+                    Toast.makeText(this@MediaActivity, "Nenhuma mídia encontrada.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
 
     private fun setupRecyclerView() {
         recyclerView = findViewById(R.id.recyclerViewMedia)
@@ -91,34 +119,32 @@ class MediaActivity : AppCompatActivity() {
         searchView = findViewById(R.id.searchView)
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                query?.let {
-                    performSearch(it)
-                }
                 return true
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                if (newText.isNullOrEmpty()) {
-                    observeMedias()
-                } else {
-                    performSearch(newText)
-                }
+                performSearch(newText.orEmpty())
                 return true
             }
         })
     }
 
     private fun observeMedias() {
-        lifecycleScope.launch {
-            mediaViewModel.getMedias(playlistId).collectLatest { pagingData ->
-                mediaAdapter.submitData(pagingData)
+        val query = searchView.query.toString()
+        if (query.isEmpty()) {
+            lifecycleScope.launch {
+                mediaViewModel.getMedias(playlistId, filterCheckbox.isChecked).collectLatest { pagingData ->
+                    mediaAdapter.submitData(pagingData)
+                }
             }
+        } else {
+            performSearch(query)
         }
     }
 
     private fun performSearch(query: String) {
         lifecycleScope.launch {
-            mediaViewModel.searchMedias(playlistId, query).collectLatest { pagingData ->
+            mediaViewModel.searchMedias(playlistId, query, filterCheckbox.isChecked).collectLatest { pagingData ->
                 mediaAdapter.submitData(pagingData)
             }
         }
@@ -236,14 +262,12 @@ class MediaActivity : AppCompatActivity() {
         return withContext(Dispatchers.IO) {
             try {
                 var connection = URL(url).openConnection() as HttpURLConnection
-                // A maioria dos servidores de streaming precisa de um User-Agent.
                 connection.setRequestProperty("User-Agent", "Mozilla/5.0")
                 connection.instanceFollowRedirects = true
                 connection.connect()
 
                 var finalUrl = connection.url.toString()
 
-                // Lida com redirecionamentos manuais (código 3xx) se instanceFollowRedirects não funcionar
                 var redirects = 0
                 while (redirects < 5 && (connection.responseCode in 300..399)) {
                     finalUrl = connection.getHeaderField("Location")
@@ -258,7 +282,6 @@ class MediaActivity : AppCompatActivity() {
                 finalUrl
             } catch (e: Exception) {
                 e.printStackTrace()
-                // Se houver erro, retorna a URL original para tentar a sorte.
                 url
             }
         }
