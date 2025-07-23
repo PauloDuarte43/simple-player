@@ -111,7 +111,10 @@ class MainActivity : AppCompatActivity() {
         playListAdapter = PlayListAdapter(
             playlists = mutableListOf(),
             onPlayClick = {
-                Snackbar.make(recyclerView, "Playing: ${it.name} (${it.pathOrUrl})", Snackbar.LENGTH_SHORT).show()
+//                Snackbar.make(recyclerView, "Playing: ${it.name} (${it.pathOrUrl})", Snackbar.LENGTH_SHORT).show()
+                val intent = Intent(this, MediaActivity::class.java)
+                intent.putExtra("PLAYLIST_ID", it.uid)
+                startActivity(intent)
             },
             onDeleteClick = { playlist ->
                 showDeleteConfirmationDialog(playlist)

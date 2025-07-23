@@ -1,8 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-
-    id("com.google.devtools.ksp") version "2.1.21-2.0.2"
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -38,15 +37,12 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.paging.runtime.ktx) // Use alias from toml
 
-    val room_version = "2.7.2"
-    val paging_version = "3.3.0"
-
-    implementation("androidx.paging:paging-runtime-ktx:${paging_version}")
-
-    implementation("androidx.room:room-runtime:$room_version")
-    implementation("androidx.room:room-ktx:${room_version}")
-    ksp("androidx.room:room-compiler:$room_version")
+    implementation(libs.androidx.room.runtime)    // Use alias from toml
+    implementation(libs.androidx.room.ktx)       // Use alias from toml
+    ksp(libs.androidx.room.compiler)             // Use alias from toml
+    implementation(libs.androidx.room.paging)    // Use alias from toml
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
