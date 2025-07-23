@@ -25,11 +25,6 @@
             android:name=".AddPlaylistActivity"
             android:label="Adicionar Playlist"
             android:parentActivityName=".MainActivity" />
-
-        <activity
-            android:name=".PlayerActivity"
-            android:label="Player"
-            android:parentActivityName=".MainActivity" />
     </application>
 
 </manifest>
