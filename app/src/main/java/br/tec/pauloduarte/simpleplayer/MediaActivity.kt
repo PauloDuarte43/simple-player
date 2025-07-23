@@ -193,17 +193,32 @@ class MediaActivity : AppCompatActivity() {
     }
 
     private fun downloadMedia(media: Media) {
+        if (media.url.isNullOrBlank()) {
+            Toast.makeText(this@MediaActivity, "Erro: URL da mídia é inválida.", Toast.LENGTH_LONG).show()
+            return
+        }
+
         lifecycleScope.launch {
             progressBar.visibility = View.VISIBLE
-            val finalUrl = resolveRedirectedUrl(media.url!!)
+            val finalUrl = resolveRedirectedUrl(media.url)
             progressBar.visibility = View.GONE
 
             try {
+                val extension = finalUrl.substringBefore('?').substringAfterLast('.', "")
+
+                val baseFileName = media.name?.trim() ?: "mediafile"
+
+                val finalFileName = if (extension.isNotBlank()) {
+                    "$baseFileName.$extension"
+                } else {
+                    baseFileName
+                }
+
                 val request = DownloadManager.Request(Uri.parse(finalUrl))
                     .setTitle(media.name)
                     .setDescription("Baixando mídia...")
                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, media.name ?: "mediafile")
+                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, finalFileName)
                     .setAllowedOverMetered(true)
                     .setAllowedOverRoaming(true)
 
