@@ -29,7 +29,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:hint="Tempo Inicial (opcional, em segundos)">
+            android:hint="Tempo Inicial (opcional, em segundos), se não selecionado, o valor será aleatório">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/editTextStartTime"
                 android:layout_width="match_parent"

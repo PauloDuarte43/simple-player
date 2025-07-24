@@ -47,9 +47,9 @@ class MediaActivity : AppCompatActivity() {
 
     private val db by lazy {
         Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java, "playlist-db"
-        ).fallbackToDestructiveMigration().build()
+                applicationContext,
+                AppDatabase::class.java, "playlist-db"
+            ).fallbackToDestructiveMigration(false).build()
     }
 
     private val mediaViewModel: MediaViewModel by viewModels {
@@ -289,6 +289,7 @@ class MediaActivity : AppCompatActivity() {
 
 
     private fun loadMediasFromLocalFile() {
+        progressBar.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             val medias = mutableListOf<Media>()
             try {
@@ -321,14 +322,20 @@ class MediaActivity : AppCompatActivity() {
                         }
                     }
                     db.mediaDao().insertAll(*medias.toTypedArray())
+                    withContext(Dispatchers.Main) {
+                        progressBar.visibility = View.GONE
+                        Toast.makeText(this@MediaActivity, "Playlist carregada com sucesso!", Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     withContext(Dispatchers.Main) {
+                        progressBar.visibility = View.GONE
                         Toast.makeText(this@MediaActivity, "Arquivo da playlist não encontrado", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
                     Toast.makeText(this@MediaActivity, "Erro ao ler a playlist", Toast.LENGTH_SHORT).show()
                 }
             }

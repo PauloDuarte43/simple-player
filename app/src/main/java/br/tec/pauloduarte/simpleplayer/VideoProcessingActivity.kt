@@ -2,6 +2,7 @@ package br.tec.pauloduarte.simpleplayer
 
 import android.app.Activity
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -11,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,6 +24,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
@@ -33,6 +36,9 @@ import androidx.media3.transformer.Transformer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -128,35 +134,48 @@ class VideoProcessingActivity : AppCompatActivity() {
             .build()
     }
 
-    // ALTERADO: O listener agora dispara a cópia do arquivo temporário para a galeria
     private val transformerListener = object : Transformer.Listener {
         override fun onCompleted(composition: Composition, exportResult: ExportResult) {
             val tempPath = currentTempPath ?: return
 
-            runOnUiThread {
-                textViewStatus.text = "Salvando na galeria..."
-            }
-
-            // NOVO: Copia o arquivo em uma thread de fundo para não travar a UI
-            Thread {
-                val finalUri = copyFileToMediaStore(File(tempPath))
-                File(tempPath).delete() // Apaga o arquivo temporário
-
-                runOnUiThread {
-                    if (finalUri != null) {
-                        finalOutputUris.add(finalUri)
-                        fileAdapter.notifyItemInserted(finalOutputUris.size - 1)
-                        recyclerViewOutputFiles.scrollToPosition(finalOutputUris.size - 1)
-                    } else {
-                        Toast.makeText(applicationContext, "Falha ao salvar o vídeo na galeria.", Toast.LENGTH_SHORT).show()
+            // Inicia uma coroutine que está ciente do ciclo de vida da UI
+            lifecycleScope.launch {
+                try {
+                    // 1. Atualiza a UI na thread principal
+                    withContext(Dispatchers.Main) {
+                        textViewStatus.text = "Salvando na galeria..."
                     }
 
-                    // Avança para o próximo corte apenas depois que a cópia também terminou
-                    progressBar.progress = currentCutIndex + 1
-                    currentCutIndex++
-                    processNextCutInQueue()
+                    // 2. Chama a função suspensa. Ela executará em Dispatchers.IO (background)
+                    // Passe o applicationContext para segurança
+                    val finalUri = copyFileToMediaStore(applicationContext, File(tempPath))
+                    File(tempPath).delete()
+
+                    // 3. Volta para a thread principal para atualizar a UI com o resultado
+                    withContext(Dispatchers.Main) {
+                        if (finalUri != null) {
+                            finalOutputUris.add(finalUri)
+                            fileAdapter.notifyItemInserted(finalOutputUris.size - 1)
+                            recyclerViewOutputFiles.scrollToPosition(finalOutputUris.size - 1)
+                        } else {
+                            textViewStatus.text = "Falha ao salvar o vídeo na galeria."
+                            Toast.makeText(applicationContext, "Falha ao salvar o vídeo.", Toast.LENGTH_SHORT).show()
+                        }
+
+                        // Avança a fila
+                        progressBar.progress = currentCutIndex + 1
+                        currentCutIndex++
+                        processNextCutInQueue()
+                    }
+
+                } catch (e: Exception) {
+                    Log.e("VideoProcessingError", "Erro fatal na coroutine de cópia", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(applicationContext, "Erro crítico ao salvar: ${e.message}", Toast.LENGTH_SHORT).show()
+                        resetUiState(isError = true)
+                    }
                 }
-            }.start()
+            }
         }
 
         override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
@@ -198,7 +217,8 @@ class VideoProcessingActivity : AppCompatActivity() {
             videoDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0
             val minutes = TimeUnit.MILLISECONDS.toMinutes(videoDuration)
             val seconds = TimeUnit.MILLISECONDS.toSeconds(videoDuration) - TimeUnit.MINUTES.toSeconds(minutes)
-            textViewVideoInfo.text = "Vídeo selecionado!\nDuração: ${minutes}m ${seconds}s"
+            val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(videoDuration)
+            textViewVideoInfo.text = "Vídeo selecionado!\nDuração: ${minutes}m ${seconds}s\nTotal: ${totalSeconds}s"
         } catch (e: Exception) {
             textViewVideoInfo.text = "Erro ao ler informações do vídeo."
             e.printStackTrace()
@@ -293,39 +313,50 @@ class VideoProcessingActivity : AppCompatActivity() {
         }
     }
 
-    // NOVO: Função para copiar o arquivo do cache para a galeria (MediaStore)
-    private fun copyFileToMediaStore(sourceFile: File): Uri? {
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, sourceFile.name.replace("temp_", ""))
-            put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MOVIES)
-            put(MediaStore.Video.Media.IS_PENDING, 1)
-        }
+    // Adicione o parâmetro 'context' e use applicationContext para obter o resolver
+// A função continua sendo 'suspend'
+    private suspend fun copyFileToMediaStore(context: Context, sourceFile: File): Uri? {
+        return withContext(Dispatchers.IO) {
+            Log.d("VideoProcessingDebug", "Executando em: ${Thread.currentThread().name}") // Para depuração
 
-        val resolver = contentResolver
-        var finalUri: Uri? = null
-        try {
-            finalUri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
-            if (finalUri != null) {
-                resolver.openOutputStream(finalUri).use { outputStream ->
-                    FileInputStream(sourceFile).use { inputStream ->
-                        if (outputStream != null) {
-                            inputStream.copyTo(outputStream)
+            // Use o applicationContext para garantir a segurança contra memory leaks
+            val resolver = context.applicationContext.contentResolver
+
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, sourceFile.name.replace("temp_", ""))
+                put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MOVIES)
+                put(MediaStore.Video.Media.IS_PENDING, 1)
+            }
+
+            var finalUri: Uri? = null
+            try {
+                Log.d("VideoProcessingDebug", "Tentando inserir no MediaStore...")
+                finalUri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+                Log.d("VideoProcessingDebug", "MediaStore insert result: $finalUri")
+
+                if (finalUri != null) {
+                    resolver.openOutputStream(finalUri).use { outputStream ->
+                        FileInputStream(sourceFile).use { inputStream ->
+                            if (outputStream != null) {
+                                inputStream.copyTo(outputStream, 8 * 1024)
+                            } else {
+                                Log.e("VideoProcessingDebug", "OutputStream é nulo para: $finalUri")
+                            }
                         }
                     }
+                    values.clear()
+                    values.put(MediaStore.Video.Media.IS_PENDING, 0)
+                    resolver.update(finalUri, values, null, null)
+                    Log.d("VideoProcessingDebug", "MediaStore update concluído.")
                 }
-                // Marca a operação como concluída
-                values.clear()
-                values.put(MediaStore.Video.Media.IS_PENDING, 0)
-                resolver.update(finalUri, values, null, null)
+            } catch (e: Exception) { // Use Exception para capturar qualquer tipo de erro
+                Log.e("VideoProcessingDebug", "Exceção durante copyFileToMediaStore", e)
+                finalUri?.let { resolver.delete(it, null, null) }
+                finalUri = null
             }
-        } catch (e: IOException) {
-            e.printStackTrace()
-            // Se der erro, desfaz a inserção
-            finalUri?.let { resolver.delete(it, null, null) }
-            return null
+            finalUri
         }
-        return finalUri
     }
 
     private fun resetUiState(isError: Boolean = false) {
