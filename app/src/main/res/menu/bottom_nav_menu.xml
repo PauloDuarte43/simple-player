@@ -8,4 +8,8 @@
         android:id="@+id/nav_add"
         android:icon="@android:drawable/ic_menu_add"
         android:title="Adicionar" />
+    <item
+        android:id="@+id/nav_process"
+        android:icon="@android:drawable/ic_menu_crop"
+        android:title="Processar" />
 </menu>

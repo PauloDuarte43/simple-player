@@ -68,6 +68,8 @@ class AddPlaylistActivity : AppCompatActivity() {
         val bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottom_navigation)
         bottomNavigationView.selectedItemId = R.id.nav_add // Marca o item correto ao iniciar
 
+        // Dentro de onCreate em AddPlaylistActivity.kt
+
         bottomNavigationView.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
@@ -79,6 +81,14 @@ class AddPlaylistActivity : AppCompatActivity() {
                 }
                 R.id.nav_add -> {
                     // Já estamos aqui, não faz nada
+                    true
+                }
+                // Bloco Adicionado
+                R.id.nav_process -> {
+                    val intent = Intent(this, VideoProcessingActivity::class.java)
+                    startActivity(intent)
+                    // Finaliza a activity atual para não empilhar
+                    finish()
                     true
                 }
                 else -> false

@@ -95,11 +95,17 @@ class MainActivity : AppCompatActivity() {
         bottomNavigationView.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_home -> {
-                    true
+                    true // Já estamos aqui
                 }
                 R.id.nav_add -> {
                     val intent = Intent(this, AddPlaylistActivity::class.java)
                     addPlaylistLauncher.launch(intent)
+                    true
+                }
+                // Bloco Adicionado
+                R.id.nav_process -> {
+                    val intent = Intent(this, VideoProcessingActivity::class.java)
+                    startActivity(intent)
                     true
                 }
                 else -> false

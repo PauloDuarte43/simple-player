@@ -37,12 +37,21 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.paging.runtime.ktx) // Use alias from toml
+    implementation(libs.androidx.media3.transformer)
+    implementation(libs.androidx.media3.effect)
+    implementation(libs.androidx.media3.common)
 
-    implementation(libs.androidx.room.runtime)    // Use alias from toml
-    implementation(libs.androidx.room.ktx)       // Use alias from toml
-    ksp(libs.androidx.room.compiler)             // Use alias from toml
-    implementation(libs.androidx.room.paging)    // Use alias from toml
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.dash)
+    implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.ui.compose)
+
+    implementation(libs.androidx.paging.runtime.ktx)
+
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.paging)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

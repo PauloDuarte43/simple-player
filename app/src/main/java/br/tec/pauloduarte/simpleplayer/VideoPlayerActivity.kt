@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.MediaController
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 
 class VideoPlayerActivity : AppCompatActivity() {
 
@@ -18,7 +19,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
         val videoUrl = intent.getStringExtra("VIDEO_URL")
         if (videoUrl != null) {
-            val videoUri = Uri.parse(videoUrl)
+            val videoUri = videoUrl.toUri()
             videoView.setVideoURI(videoUri)
 
             val mediaController = MediaController(this)
