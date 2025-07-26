@@ -15,7 +15,6 @@ class MediaAdapter(
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val mediaNameTextView: TextView = view.findViewById(R.id.mediaName)
-        val mediaGroupTextView: TextView = view.findViewById(R.id.mediaGroup)
 
         fun bind(media: Media?, onItemClick: (Media) -> Unit) {
             media?.let {
@@ -33,7 +32,6 @@ class MediaAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val media = getItem(position)
         holder.mediaNameTextView.text = media?.name
-        holder.mediaGroupTextView.text = media?.groupName
         holder.bind(media, onItemClick)
     }
 

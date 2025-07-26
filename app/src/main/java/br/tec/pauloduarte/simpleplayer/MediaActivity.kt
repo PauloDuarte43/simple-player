@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.os.Environment
 import android.view.MenuItem
 import android.view.View
-import android.widget.CheckBox
 import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -42,14 +41,14 @@ class MediaActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var playlist: PlayList
     private var playlistId: Int = -1
-    private lateinit var filterCheckbox: CheckBox
+    private lateinit var groupName: String
     private lateinit var randomButton: ImageButton
 
     private val db by lazy {
         Room.databaseBuilder(
-                applicationContext,
-                AppDatabase::class.java, "playlist-db"
-            ).fallbackToDestructiveMigration(false).build()
+            applicationContext,
+            AppDatabase::class.java, "playlist-db"
+        ).fallbackToDestructiveMigration(false).build()
     }
 
     private val mediaViewModel: MediaViewModel by viewModels {
@@ -62,10 +61,11 @@ class MediaActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         progressBar = findViewById(R.id.progressBar)
-        filterCheckbox = findViewById(R.id.filterCheckbox)
         randomButton = findViewById(R.id.randomButton)
 
         playlistId = intent.getIntExtra("PLAYLIST_ID", -1)
+        groupName = intent.getStringExtra("GROUP_NAME") ?: "Todos"
+
         if (playlistId == -1) {
             finish()
             return
@@ -74,22 +74,15 @@ class MediaActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             playlist = db.playListDao().loadAllByIds(intArrayOf(playlistId)).first()
             withContext(Dispatchers.Main) {
-                supportActionBar?.title = playlist.name
+                supportActionBar?.title = if (groupName == "Todos") playlist.name else groupName
             }
         }
 
         setupRecyclerView()
         setupSearchView()
-        setupFilterCheckbox()
         setupRandomButton()
         observeMedias()
         loadMediasIfNeeded()
-    }
-
-    private fun setupFilterCheckbox() {
-        filterCheckbox.setOnCheckedChangeListener { _, _ ->
-            observeMedias()
-        }
     }
 
     private fun setupRandomButton() {
@@ -133,7 +126,7 @@ class MediaActivity : AppCompatActivity() {
         val query = searchView.query.toString()
         if (query.isEmpty()) {
             lifecycleScope.launch {
-                mediaViewModel.getMedias(playlistId, filterCheckbox.isChecked).collectLatest { pagingData ->
+                mediaViewModel.getMedias(playlistId, groupName, false).collectLatest { pagingData ->
                     mediaAdapter.submitData(pagingData)
                 }
             }
@@ -144,7 +137,7 @@ class MediaActivity : AppCompatActivity() {
 
     private fun performSearch(query: String) {
         lifecycleScope.launch {
-            mediaViewModel.searchMedias(playlistId, query, filterCheckbox.isChecked).collectLatest { pagingData ->
+            mediaViewModel.searchMedias(playlistId, query, groupName, false).collectLatest { pagingData ->
                 mediaAdapter.submitData(pagingData)
             }
         }
@@ -299,12 +292,15 @@ class MediaActivity : AppCompatActivity() {
                         var line: String?
                         var mediaName: String? = null
                         var mediaGroup: String? = null
+                        var mediaLogo: String? = null
                         while (br.readLine().also { line = it } != null) {
                             if (line!!.startsWith("#EXTINF")) {
                                 val nameMatch = Regex("tvg-name=\"([^\"]*)\"").find(line!!)
                                 val groupMatch = Regex("group-title=\"([^\"]*)\"").find(line!!)
+                                val logo = Regex("tvg-logo=\"([^\"]*)\"").find(line!!)
                                 mediaName = nameMatch?.groups?.get(1)?.value ?: line!!.substringAfter(",")
                                 mediaGroup = groupMatch?.groups?.get(1)?.value
+                                mediaLogo = logo?.groups?.get(1)?.value
                             } else if (line!!.isNotBlank() && !line!!.startsWith("#")) {
                                 if (mediaName != null) {
                                     medias.add(
@@ -312,6 +308,7 @@ class MediaActivity : AppCompatActivity() {
                                             playlistId = playlistId,
                                             name = mediaName,
                                             groupName = mediaGroup,
+                                            logo = mediaLogo,
                                             url = line
                                         )
                                     )

@@ -22,5 +22,6 @@ data class Media(
     val playlistId: Int,
     @ColumnInfo(name = "name") val name: String?,
     @ColumnInfo(name = "groupName") val groupName: String? = null,
+    @ColumnInfo(name = "logo") val logo: String? = null,
     @ColumnInfo(name = "url") val url: String? = null,
 )
