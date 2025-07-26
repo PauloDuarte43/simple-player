@@ -17,7 +17,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.room.Room
 import br.tec.pauloduarte.simpleplayer.data.AppDatabase
@@ -104,7 +104,10 @@ class MediaActivity : AppCompatActivity() {
         mediaAdapter = MediaAdapter { media ->
             handleMediaClick(media)
         }
-        recyclerView.layoutManager = LinearLayoutManager(this)
+
+        val spanCount = (resources.displayMetrics.widthPixels / (120 * resources.displayMetrics.density)).toInt()
+
+        recyclerView.layoutManager = GridLayoutManager(this, spanCount)
         recyclerView.adapter = mediaAdapter
     }
 
